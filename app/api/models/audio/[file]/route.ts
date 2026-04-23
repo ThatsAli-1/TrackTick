@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 const ALLOWED = new Set(["model.json", "metadata.json", "weights.bin"]);
-const BASE_DIR = "/Users/thatsali/Downloads/tm-my-audio-model";
+const BASE_DIR = path.join(process.cwd(), "models", "audio");
 
 type Params = { params: Promise<{ file: string }> };
 
