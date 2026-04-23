@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracktik | Stay Focused</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            /* Light Mode (Sandy) */
+            --bg: #F9E4C8;
+            --card-bg: #F7D7B5;
+            --card-shadow: #F3C695;
+            --text-main: #4A3728;
+            --text-dim: #A68E7A;
+            --accent: #FFB37E;
+            --btn-text: #4A3728;
+            --input-bg: #FFDAB9;
+            --nav-hover: rgba(74, 55, 40, 0.1);
+        }
+
+        [data-theme="dark"] {
+            /* Dark Mode (Deep Navy) */
+            --bg: #1B2447;
+            --card-bg: #28345E;
+            --card-shadow: #1E294A;
+            --text-main: #E2E8F0;
+            --text-dim: #64748B;
+            --accent: #3E5296;
+            --btn-text: #E2E8F0;
+            --input-bg: #1E294A;
+            --nav-hover: rgba(226, 232, 240, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'VT323', monospace;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Sand Texture Overlay */
+            background-image: url("https://www.transparenttextures.com/patterns/p6.png");
+        }
+
+        /* --- Navigation --- */
+        nav {
+            padding: 2rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .nav-links a:hover {
+            background: var(--nav-hover);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        /* --- Theme Toggle --- */
+        .theme-switch {
+            width: 80px;
+            height: 35px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            border: 2px solid var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+        }
+
+        .toggle-knob {
+            position: absolute;
+            width: 30px;
+            height: 25px;
+            background: var(--accent);
+            border-radius: 15px;
+            left: 4px;
+            transition: transform 0.3s;
+            border: 2px solid var(--text-main);
+        }
+
+        [data-theme="dark"] .toggle-knob {
+            transform: translateX(40px);
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- Layout Container --- */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 10%;
+            gap: 50px;
+        }
+
+        .content-left {
+            flex: 1;
+            max-width: 500px;
+        }
+
+        h1 { font-size: 4rem; line-height: 1; margin-bottom: 20px; }
+        p { font-size: 1.4rem; margin-bottom: 30px; line-height: 1.2; }
+
+        .primary-btn {
+            background: var(--accent);
+            color: var(--btn-text);
+            border: none;
+            padding: 15px 40px;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px var(--text-main);
+            margin-top: 20px;
+        }
+
+        .primary-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--text-main);
+        }
+
+        /* --- The Card --- */
+        .card-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+
+        .card-shadow {
+            position: absolute;
+            width: 420px;
+            height: 450px;
+            background: var(--card-shadow);
+            border-radius: 30px;
+            transform: rotate(-5deg);
+            z-index: 1;
+        }
+
+        .main-card {
+            position: relative;
+            width: 420px;
+            min-height: 450px;
+            background: var(--card-bg);
+            border-radius: 30px;
+            z-index: 2;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.1);
+        }
+
+        /* --- Timer Specifics --- */
+        .timer-tabs {
+            display: flex;
+            gap: 15px;
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+        }
+
+        .tab.active { text-decoration: underline; font-weight: bold; }
+        .tab.disabled { color: var(--text-dim); cursor: not-allowed; }
+
+        .timer-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .timer-display span { font-size: 2rem; display: block; }
+        .timer-display h2 { font-size: 6rem; line-height: 1; }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--text-dim);
+            border-radius: 10px;
+            margin-bottom: 40px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 70%;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: var(--accent);
+            padding: 10px 25px;
+            border-radius: 15px;
+            font-size: 1.5rem;
+        }
+
+        /* --- Forms --- */
+        .form-group {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .form-group label { display: block; margin-bottom: 5px; font-size: 1.2rem; }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background: var(--input-bg);
+            border: 2px solid var(--text-main);
+            font-size: 1.2rem;
+            color: var(--text-main);
+        }
+
+        .hidden { display: none !important; }
+
+        footer {
+            padding: 2rem 4rem;
+            font-size: 1.2rem;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <nav>
+        <div class="nav-links">
+            <a href="#" onclick="showPage('landing')">Home</a>
+            <a href="#">Pomodoro</a>
+            <a href="#">Calendar</a>
+            <a href="#" onclick="showPage('signup')">Sign Up</a>
+            <a href="#" onclick="showPage('login')">Login</a>
+        </div>
+        <div class="nav-right">
+            <div class="theme-switch" onclick="toggleTheme()">
+                <i class="fas fa-moon"></i>
+                <div class="toggle-knob"></div>
+                <i class="fas fa-sun"></i>
+            </div>
+            <div class="logo">Tracktik <i class="fas fa-mountain-sun"></i></div>
+        </div>
+    </nav>
+
+    <main id="page-landing">
+        <div class="content-left">
+            <h1>Stay Focused Finish More With Tracktik</h1>
+            <p>Tracktik brings together Pomodoro sessions, task planning, calendar goals, and progress tracking in one clean dashboard designed to help students stay organized and consistent.</p>
+            <button class="primary-btn" onclick="showPage('signup')">Start Focusing</button>
+        </div>
+        <div class="card-container">
+            <div class="card-shadow"></div>
+            <div class="main-card">
+                <div class="timer-tabs">
+                    <span class="tab active">Pomodoro</span> | 
+                    <span class="tab disabled">Short Break</span> | 
+                    <span class="tab disabled">Long Break</span>
+                </div>
+                <div class="timer-display">
+                    <span>Focus</span>
+                    <h2>14:32</h2>
+                </div>
+                <div class="progress-bar"><div class="progress-fill"></div></div>
+                <div class="controls">
+                    PAUSE <i class="fas fa-pause"></i> &nbsp; | &nbsp;
+                    <i class="fas fa-backward-step"></i>
+                    <i class="fas fa-forward-step"></i>
+                    <i class="fas fa-trash"></i>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="page-login" class="hidden">
+        <div class="content-left">
+            <h1>Welcome Back</h1>
+            <p>Pick up where you left off. Stay focused and keep your progress going.</p>
+        </div>
+        <div class="card-container">
+            <div class="card-shadow"></div>
+            <div class="main-card">
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Username or Email</label>
+                    <input type="text" placeholder="Enter here...">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" placeholder="********">
+                </div>
+                <button class="primary-btn" style="width:100%">LOGIN</button>
+                <p style="margin-top:20px; font-size:1rem; cursor:pointer" onclick="showPage('forgot')">Forgot password?</p>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer-date">11:00PM | 4/21/2026</footer>
+
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', currentTheme === 'light' ? 'dark' : 'light');
+        }
+
+        function showPage(pageId) {
+            // Hide all main elements
+            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
+            // Show the requested one
+            const target = document.getElementById('page-' + pageId);
+            if(target) target.classList.remove('hidden');
+        }
+
+        // Live Clock for the footer
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString();
+            document.getElementById('footer-date').innerText = `${timeStr} | ${dateStr}`;
+        }, 1000);
+    </script>
+</body>
+</html>
