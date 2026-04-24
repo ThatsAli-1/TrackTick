@@ -14,6 +14,8 @@ const MODE_SECONDS = {
 } as const;
 type PomodoroMode = keyof typeof MODE_SECONDS;
 
+const POMODORO_FOCUS_TASK_KEY = "tracktick:pomodoroFocusTaskId";
+
 type BrowserRecognizer = {
   ensureModelLoaded: () => Promise<void>;
   wordLabels: () => string[];
@@ -32,6 +34,10 @@ export default function PomodoroPage() {
   const [goal, setGoal] = useState(6);
   const [sessions, setSessions] = useState<{ id: number; durationSeconds: number; completedAt: string }[]>([]);
   const [tasks, setTasks] = useState<{ id: number; title: string; done: boolean }[]>([]);
+  /** Set when the user picks a task; ignored if that task is no longer open. */
+  const [manualFocusTaskId, setManualFocusTaskId] = useState<number | null>(null);
+  const [taskPickerOpen, setTaskPickerOpen] = useState(false);
+  const taskPickerRef = useRef<HTMLDivElement | null>(null);
   const [aiReady, setAiReady] = useState(false);
   const [aiBooting, setAiBooting] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("Idle");
@@ -54,6 +60,46 @@ export default function PomodoroPage() {
       .then((res) => res.json())
       .then((data) => setTasks(data));
   }, []);
+
+  const pomodoroFocus = useMemo(() => {
+    const openTaskList = tasks.filter((t) => !t.done);
+    if (openTaskList.length === 0) {
+      return {
+        openTaskList,
+        activeTaskId: null as number | null,
+        activeTaskTitle: "No active task",
+      };
+    }
+    let activeTaskId: number | null = null;
+    if (manualFocusTaskId != null && openTaskList.some((t) => t.id === manualFocusTaskId)) {
+      activeTaskId = manualFocusTaskId;
+    } else if (typeof window !== "undefined") {
+      const raw = localStorage.getItem(POMODORO_FOCUS_TASK_KEY);
+      const fromStore = raw ? Number(raw) : NaN;
+      if (!Number.isNaN(fromStore) && openTaskList.some((t) => t.id === fromStore)) activeTaskId = fromStore;
+    }
+    if (activeTaskId == null) activeTaskId = openTaskList[0]!.id;
+    const activeTaskTitle =
+      openTaskList.find((t) => t.id === activeTaskId)?.title ?? "Select a task";
+    return { openTaskList, activeTaskId, activeTaskTitle };
+  }, [tasks, manualFocusTaskId]);
+
+  const { openTaskList, activeTaskId, activeTaskTitle } = pomodoroFocus;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (activeTaskId == null) localStorage.removeItem(POMODORO_FOCUS_TASK_KEY);
+    else localStorage.setItem(POMODORO_FOCUS_TASK_KEY, String(activeTaskId));
+  }, [activeTaskId]);
+
+  useEffect(() => {
+    if (!taskPickerOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!taskPickerRef.current?.contains(e.target as Node)) setTaskPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [taskPickerOpen]);
 
   async function loadScript(src: string) {
     if (document.querySelector(`script[src="${src}"]`)) return;
@@ -270,9 +316,52 @@ export default function PomodoroPage() {
           </div>
 
           <p className="mt-8 text-xl">Current Task</p>
-          <div className="mt-2 inline-flex min-w-[280px] items-center justify-between rounded-xl px-3 py-2" style={{ background: palette.accent }}>
-            <span>{tasks.find((task) => !task.done)?.title ?? "No active task"}</span>
-            <span>&gt;</span>
+          <div ref={taskPickerRef} className="relative mt-2 inline-block min-w-[280px]">
+            <button
+              type="button"
+              aria-expanded={taskPickerOpen}
+              aria-haspopup="listbox"
+              onClick={() => setTaskPickerOpen((o) => !o)}
+              className="inline-flex w-full min-w-[280px] items-center justify-between rounded-xl px-3 py-2 text-left"
+              style={{ background: palette.accent }}
+            >
+              <span className="truncate pr-2">{activeTaskTitle}</span>
+              <span className="shrink-0" aria-hidden>
+                {taskPickerOpen ? "∧" : ">"}
+              </span>
+            </button>
+            {taskPickerOpen && (
+              <ul
+                role="listbox"
+                aria-label="Tasks for this session"
+                className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-auto rounded-xl py-1 shadow-lg"
+                style={{ background: palette.cardBg, border: `1px solid ${palette.accent}` }}
+              >
+                {openTaskList.length === 0 ? (
+                  <li className="px-3 py-2 text-sm opacity-80">No open tasks — add some on Tasks.</li>
+                ) : (
+                  openTaskList.map((task) => (
+                    <li key={task.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={task.id === activeTaskId}
+                        onClick={() => {
+                          setManualFocusTaskId(task.id);
+                          setTaskPickerOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:opacity-90"
+                        style={{
+                          background: task.id === activeTaskId ? palette.accent : "transparent",
+                        }}
+                      >
+                        {task.title}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
           </div>
           <div className="mt-6 text-sm">
             <p>AI: {aiReady ? "Ready" : aiBooting ? "Loading..." : "Off"}</p>
