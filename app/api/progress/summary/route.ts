@@ -1,33 +1,40 @@
-import db from "@/lib/db";
+import { connectMongo, getDb } from "@/lib/mongo";
 
 export async function GET() {
-  const taskStats = db
-    .prepare(
-      "SELECT COUNT(*) as total, SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) as completed FROM tasks",
-    )
-    .get() as {
-    total: number;
-    completed: number | null;
-  };
+  await connectMongo();
+  const db = getDb();
 
-  const focusStats = db
-    .prepare(
-      "SELECT COUNT(*) as sessions, COALESCE(SUM(durationSeconds), 0) as totalSeconds FROM pomodoro_sessions WHERE mode = 'focus'",
-    )
-    .get() as {
-    sessions: number;
-    totalSeconds: number;
-  };
+  const [taskTotal, taskCompleted] = await Promise.all([
+    db.collection("tasks").countDocuments(),
+    db.collection("tasks").countDocuments({ done: true }),
+  ]);
 
-  const upcoming = db
-    .prepare("SELECT COUNT(*) as total FROM calendar_events WHERE eventDate >= date('now')")
-    .get() as { total: number };
+  const focusAgg = await db
+    .collection("pomodoro_sessions")
+    .aggregate<{ sessions: number; totalSeconds: number }>([
+      { $match: { mode: "focus" } },
+      {
+        $group: {
+          _id: null,
+          sessions: { $sum: 1 },
+          totalSeconds: { $sum: "$durationSeconds" },
+        },
+      },
+    ])
+    .toArray();
+
+  const focusStats = focusAgg[0] ?? { sessions: 0, totalSeconds: 0 };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = await db.collection("calendar_events").countDocuments({
+    eventDate: { $gte: today },
+  });
 
   return Response.json({
-    tasksTotal: taskStats.total,
-    tasksCompleted: taskStats.completed ?? 0,
+    tasksTotal: taskTotal,
+    tasksCompleted: taskCompleted,
     focusSessions: focusStats.sessions,
     focusMinutes: Math.floor(focusStats.totalSeconds / 60),
-    upcomingEvents: upcoming.total,
+    upcomingEvents,
   });
 }

@@ -1,5 +1,13 @@
 # Minimal ignore: large deps and bulky generated output only.
-# Env, certs, logs, .vercel, etc. are tracked for transfer branches — use care.
+
+# secrets & local env (never push)
+.env.local
+.env*.local
+
+# legacy SQLite (replaced by MongoDB)
+local.db
+local.db-shm
+local.db-wal
 
 # dependencies
 /node_modules

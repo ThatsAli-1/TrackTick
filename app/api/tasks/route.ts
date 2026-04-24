@@ -1,9 +1,13 @@
-import db, { type TaskRow } from "@/lib/db";
+import { connectMongo, getDb, nextSequence, type TaskRow } from "@/lib/mongo";
 
 export async function GET() {
-  const rows = db
-    .prepare("SELECT id, title, done, priority, dueDate, createdAt FROM tasks ORDER BY createdAt DESC")
-    .all() as TaskRow[];
+  await connectMongo();
+  const db = getDb();
+  const rows = (await db
+    .collection<TaskRow>("tasks")
+    .find({}, { projection: { _id: 0 } })
+    .sort({ createdAt: -1 })
+    .toArray()) as TaskRow[];
   return Response.json(
     rows.map((row) => ({
       ...row,
@@ -23,14 +27,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "Title is required." }, { status: 400 });
   }
 
+  await connectMongo();
+  const db = getDb();
   const priority = body.priority ?? "medium";
   const createdAt = new Date().toISOString();
-  const info = db
-    .prepare("INSERT INTO tasks (title, done, priority, dueDate, createdAt) VALUES (?, 0, ?, ?, ?)")
-    .run(body.title.trim(), priority, body.dueDate ?? null, createdAt);
+  const id = await nextSequence(db, "tasks");
+
+  await db.collection<TaskRow>("tasks").insertOne({
+    id,
+    title: body.title.trim(),
+    done: false,
+    priority,
+    dueDate: body.dueDate ?? null,
+    createdAt,
+  });
 
   return Response.json({
-    id: info.lastInsertRowid,
+    id,
     title: body.title.trim(),
     done: false,
     priority,

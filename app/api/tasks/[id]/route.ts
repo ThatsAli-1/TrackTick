@@ -1,9 +1,14 @@
-import db from "@/lib/db";
+import { connectMongo, getDb } from "@/lib/mongo";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
-  const { id } = await params;
+  const { id: idParam } = await params;
+  const id = Number(idParam);
+  if (!Number.isFinite(id)) {
+    return Response.json({ error: "Invalid task id." }, { status: 400 });
+  }
+
   const body = (await request.json()) as {
     done?: boolean;
     title?: string;
@@ -11,26 +16,34 @@ export async function PATCH(request: Request, { params }: Params) {
     dueDate?: string | null;
   };
 
-  const existing = db.prepare("SELECT id FROM tasks WHERE id = ?").get(id) as { id: number } | undefined;
+  await connectMongo();
+  const db = getDb();
+  const existing = await db.collection("tasks").findOne({ id });
   if (!existing) {
     return Response.json({ error: "Task not found." }, { status: 404 });
   }
 
-  db.prepare(
-    "UPDATE tasks SET done = COALESCE(?, done), title = COALESCE(?, title), priority = COALESCE(?, priority), dueDate = COALESCE(?, dueDate) WHERE id = ?",
-  ).run(
-    typeof body.done === "boolean" ? Number(body.done) : null,
-    body.title ?? null,
-    body.priority ?? null,
-    body.dueDate ?? null,
-    id,
-  );
+  const $set: Record<string, unknown> = {};
+  if (typeof body.done === "boolean") $set.done = body.done;
+  if (body.title !== undefined) $set.title = body.title;
+  if (body.priority !== undefined) $set.priority = body.priority;
+  if (body.dueDate !== undefined) $set.dueDate = body.dueDate;
+
+  if (Object.keys($set).length > 0) {
+    await db.collection("tasks").updateOne({ id }, { $set });
+  }
 
   return Response.json({ ok: true });
 }
 
 export async function DELETE(_: Request, { params }: Params) {
-  const { id } = await params;
-  db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
+  const { id: idParam } = await params;
+  const id = Number(idParam);
+  if (!Number.isFinite(id)) {
+    return Response.json({ error: "Invalid task id." }, { status: 400 });
+  }
+
+  await connectMongo();
+  await getDb().collection("tasks").deleteOne({ id });
   return Response.json({ ok: true });
 }
