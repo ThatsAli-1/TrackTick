@@ -1,3 +1,5 @@
+# Intentional: do NOT list .env / .env.local / secrets here — this repo tracks them (see .cursor/rules).
+
 # Dependencies — restored with `npm install`
 /node_modules
 /.pnp
