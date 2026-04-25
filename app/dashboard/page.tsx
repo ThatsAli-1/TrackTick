@@ -3,18 +3,11 @@
 import { useEffect, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
 import Link from "next/link";
-
-type Summary = {
-  tasksTotal: number;
-  tasksCompleted: number;
-  focusSessions: number;
-  focusMinutes: number;
-  upcomingEvents: number;
-};
+import type { ProgressSummary, TaskListItem } from "@/lib/types";
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [tasks, setTasks] = useState<{ id: number; title: string; done: boolean; dueDate?: string | null }[]>([]);
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
+  const [tasks, setTasks] = useState<TaskListItem[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [notes, setNotes] = useState(() => {
@@ -24,33 +17,21 @@ export default function DashboardPage() {
   const { palette } = useTrackTheme();
 
   async function refreshData() {
-    const summaryData = (await fetch("/api/progress/summary").then((res) => res.json())) as Summary;
-    setSummary(summaryData);
-    const taskData = (await fetch("/api/tasks").then((res) => res.json())) as {
-      id: number;
-      title: string;
-      done: boolean;
-      dueDate?: string | null;
-    }[];
-    setTasks(taskData);
+    const [summaryRes, tasksRes] = await Promise.all([
+      fetch("/api/progress/summary"),
+      fetch("/api/tasks"),
+    ]);
+    setSummary((await summaryRes.json()) as ProgressSummary);
+    setTasks((await tasksRes.json()) as TaskListItem[]);
   }
 
   useEffect(() => {
     void fetch("/api/progress/summary")
       .then((res) => res.json())
-      .then((data) => setSummary(data));
+      .then((data) => setSummary(data as ProgressSummary));
     void fetch("/api/tasks")
       .then((res) => res.json())
-      .then((data) =>
-        setTasks(
-          data as {
-            id: number;
-            title: string;
-            done: boolean;
-            dueDate?: string | null;
-          }[],
-        ),
-      );
+      .then((data) => setTasks(data as TaskListItem[]));
   }, []);
 
   useEffect(() => {

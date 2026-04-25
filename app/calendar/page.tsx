@@ -2,27 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
+import type { CalendarEvent, Task } from "@/lib/types";
 
-type CalendarEvent = {
-  id: number;
-  title: string;
-  eventDate: string;
-  note: string | null;
-  createdAt: string;
-};
-
-type TaskItem = {
-  id: number;
-  title: string;
-  done: boolean;
-  dueDate: string | null;
-  priority: "low" | "medium" | "high";
-};
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 export default function CalendarPage() {
   const { palette } = useTrackTheme();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [monthDate, setMonthDate] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -80,127 +67,150 @@ export default function CalendarPage() {
     const day = idx - firstDayWeekIdx + 1;
     return new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
   });
+  const gridRowCount = Math.ceil((firstDayWeekIdx + daysInMonth) / 7);
 
   const selectedTasks = tasks.filter((task) => task.dueDate === selectedDate);
   const selectedEvents = events.filter((event) => event.eventDate === selectedDate);
 
   return (
     <AppShell>
-      <div className="mb-5 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() =>
-            setMonthDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-          }
-          className="rounded-lg px-3 py-2"
-          style={{ background: palette.accent }}
-        >
-          &lt; Prev
-        </button>
-        <p className="text-xl">{monthLabel}</p>
-        <button
-          type="button"
-          onClick={() =>
-            setMonthDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
-          }
-          className="rounded-lg px-3 py-2"
-          style={{ background: palette.accent }}
-        >
-          Next &gt;
-        </button>
-      </div>
-
-      <div className="mb-6 rounded-xl p-4" style={{ background: palette.cardBg }}>
-        <div className="mb-2 grid grid-cols-7 gap-2 text-center text-xs sm:text-sm">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <p key={d}>{d}</p>
-          ))}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden sm:gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setMonthDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+            className="rounded-lg px-3 py-2 text-sm sm:text-base"
+            style={{ background: palette.accent }}
+          >
+            &lt; Prev
+          </button>
+          <p className="truncate text-center text-base sm:text-xl">{monthLabel}</p>
+          <button
+            type="button"
+            onClick={() => setMonthDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            className="rounded-lg px-3 py-2 text-sm sm:text-base"
+            style={{ background: palette.accent }}
+          >
+            Next &gt;
+          </button>
         </div>
-        <div className="grid grid-cols-7 gap-2">
-          {cells.map((date, idx) => {
-            if (!date) return <div key={`empty-${idx}`} className="h-20 rounded-lg" />;
-            const ymd = date.toISOString().slice(0, 10);
-            const isSelected = ymd === selectedDate;
-            const dots = dateDots.get(ymd) ?? [];
-            return (
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden lg:flex-row lg:gap-4">
+          <div
+            className="flex min-h-[11rem] flex-[1.4] flex-col overflow-hidden rounded-xl p-2 sm:min-h-0 sm:flex-1 sm:p-3"
+            style={{ background: palette.cardBg }}
+          >
+            <div className="mb-1 grid shrink-0 grid-cols-7 gap-0.5 text-center text-[10px] sm:gap-1 sm:text-xs">
+              {WEEKDAYS.map((d) => (
+                <p key={d} className="truncate">
+                  {d}
+                </p>
+              ))}
+            </div>
+            <div
+              className="grid min-h-0 flex-1 grid-cols-7 gap-0.5 sm:gap-1"
+              style={{
+                gridTemplateRows: `repeat(${gridRowCount}, minmax(0, 1fr))`,
+              }}
+            >
+              {cells.map((date, idx) => {
+                if (!date) {
+                  return <div key={`empty-${idx}`} className="min-h-0 min-w-0 rounded-md" />;
+                }
+                const ymd = date.toISOString().slice(0, 10);
+                const isSelected = ymd === selectedDate;
+                const dots = dateDots.get(ymd) ?? [];
+                return (
+                  <button
+                    type="button"
+                    key={ymd}
+                    onClick={() => {
+                      setSelectedDate(ymd);
+                      setEventDate(ymd);
+                    }}
+                    className="flex min-h-0 min-w-0 flex-col rounded-md border p-0.5 text-left sm:p-1.5"
+                    style={{
+                      borderColor: isSelected ? palette.progressFill : palette.border,
+                      background: isSelected ? palette.accent : palette.innerBg,
+                    }}
+                  >
+                    <p className="text-[10px] leading-none sm:text-xs">{date.getDate()}</p>
+                    <div className="mt-auto flex flex-wrap gap-0.5 pt-0.5">
+                      {dots.slice(0, 3).map((dot, i) => (
+                        <span key={`${ymd}-dot-${i}`} className="h-1.5 w-1.5 shrink-0 rounded-full sm:h-2 sm:w-2" style={{ background: dot }} />
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex min-h-0 w-full shrink-0 flex-col gap-2 overflow-hidden lg:flex lg:max-w-sm lg:flex-1 lg:gap-3">
+            <div
+              className="grid shrink-0 grid-cols-2 gap-2 rounded-xl p-2 sm:grid-cols-4 lg:grid-cols-2 lg:p-3"
+              style={{ background: palette.cardBg }}
+            >
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Title"
+                className="col-span-2 rounded-md px-2 py-1.5 text-sm outline-none sm:col-span-1 lg:col-span-2"
+                style={{ background: palette.innerBg, color: palette.text }}
+              />
+              <input
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                className="rounded-md px-2 py-1.5 text-sm"
+                style={{ background: palette.innerBg, color: palette.text }}
+              />
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Note"
+                className="col-span-2 rounded-md px-2 py-1.5 text-sm outline-none lg:col-span-2"
+                style={{ background: palette.innerBg, color: palette.text }}
+              />
               <button
                 type="button"
-                key={ymd}
-                onClick={() => {
-                  setSelectedDate(ymd);
-                  setEventDate(ymd);
-                }}
-                className="h-20 rounded-lg border p-2 text-left"
-                style={{
-                  borderColor: isSelected ? palette.progressFill : palette.border,
-                  background: isSelected ? palette.accent : palette.innerBg,
-                }}
+                onClick={() => void addEvent()}
+                className="col-span-2 rounded-md px-3 py-1.5 text-sm hover:opacity-90 lg:col-span-2"
+                style={{ background: palette.accent }}
               >
-                <p className="text-xs">{date.getDate()}</p>
-                <div className="mt-2 flex gap-1">
-                  {dots.slice(0, 3).map((dot, i) => (
-                    <span key={`${ymd}-dot-${i}`} className="h-2 w-2 rounded-full" style={{ background: dot }} />
-                  ))}
-                </div>
+                Save Event
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mb-6 grid gap-3 rounded-xl p-4 sm:grid-cols-4" style={{ background: palette.cardBg }}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Event title"
-          className="rounded-md px-3 py-2 outline-none"
-          style={{ background: palette.innerBg, color: palette.text }}
-        />
-        <input
-          type="date"
-          value={eventDate}
-          onChange={(e) => setEventDate(e.target.value)}
-          className="rounded-md px-3 py-2"
-          style={{ background: palette.innerBg, color: palette.text }}
-        />
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Note (optional)"
-          className="rounded-md px-3 py-2 outline-none"
-          style={{ background: palette.innerBg, color: palette.text }}
-        />
-        <button
-          onClick={addEvent}
-          className="rounded-md px-4 py-2 hover:opacity-90"
-          style={{ background: palette.accent }}
-        >
-          Save Event
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        <p className="text-lg">Selected Date: {selectedDate}</p>
-        {selectedTasks
-          .map((task) => (
-            <div key={`task-${task.id}`} className="rounded-xl p-4" style={{ background: palette.cardBg }}>
-              <p className="text-xl">{task.title}</p>
-              <p className="text-sm opacity-80">Task date: {task.dueDate}</p>
-              <p className="mt-1 text-xs opacity-80">
-                {task.done ? "Completed" : "Pending"} • Priority: {task.priority}
-              </p>
             </div>
-          ))}
-        {selectedEvents.map((event) => (
-          <div key={event.id} className="rounded-xl p-4" style={{ background: palette.cardBg }}>
-            <p className="text-xl">{event.title}</p>
-            <p className="text-sm opacity-80">{event.eventDate}</p>
-            {event.note && <p className="mt-1 text-sm opacity-90">{event.note}</p>}
+
+            <div
+              className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl p-2 sm:p-3"
+              style={{ background: palette.cardBg }}
+            >
+              <p className="shrink-0 text-sm font-medium sm:text-base">{selectedDate}</p>
+              <div className="min-h-0 flex-1 space-y-2 overflow-hidden">
+                {selectedTasks.map((task) => (
+                  <div key={`task-${task.id}`} className="shrink-0 rounded-lg px-2 py-1.5" style={{ background: palette.innerBg }}>
+                    <p className="truncate text-sm font-medium sm:text-base">{task.title}</p>
+                    <p className="truncate text-xs opacity-80">
+                      {task.done ? "Done" : "Open"} • {task.priority}
+                    </p>
+                  </div>
+                ))}
+                {selectedEvents.map((event) => (
+                  <div key={event.id} className="shrink-0 rounded-lg px-2 py-1.5" style={{ background: palette.innerBg }}>
+                    <p className="truncate text-sm font-medium sm:text-base">{event.title}</p>
+                    {event.note ? (
+                      <p className="line-clamp-2 text-xs opacity-90">{event.note}</p>
+                    ) : null}
+                  </div>
+                ))}
+                {selectedTasks.length === 0 && selectedEvents.length === 0 ? (
+                  <p className="text-sm opacity-75">Nothing on this date.</p>
+                ) : null}
+              </div>
+            </div>
           </div>
-        ))}
-        {selectedTasks.length === 0 && selectedEvents.length === 0 && (
-          <p className="opacity-75">No tasks or events on this date.</p>
-        )}
+        </div>
       </div>
     </AppShell>
   );

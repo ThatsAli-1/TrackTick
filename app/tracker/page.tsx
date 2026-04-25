@@ -2,20 +2,28 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
+import type { Task } from "@/lib/types";
 
-type Task = {
-  id: number;
-  title: string;
-  done: boolean;
-  priority: "low" | "medium" | "high";
-};
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
 
 export default function TrackerPage() {
   const { palette } = useTrackTheme();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [monthIndex, setMonthIndex] = useState(3);
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   useEffect(() => {
     void fetch("/api/tasks")
@@ -51,16 +59,16 @@ export default function TrackerPage() {
               className="rounded px-2 py-1"
               style={{ background: palette.accent }}
             >
-              &lt;{monthNames[(monthIndex + 11) % 12]}
+              &lt;{MONTH_NAMES[(monthIndex + 11) % 12]}
             </button>
-            <span>{monthNames[monthIndex]}</span>
+            <span>{MONTH_NAMES[monthIndex]}</span>
             <button
               type="button"
               onClick={() => setMonthIndex((m) => (m + 1) % 12)}
               className="rounded px-2 py-1"
               style={{ background: palette.accent }}
             >
-              {monthNames[(monthIndex + 1) % 12]}&gt;
+              {MONTH_NAMES[(monthIndex + 1) % 12]}&gt;
             </button>
           </div>
         </section>

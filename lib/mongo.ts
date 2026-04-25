@@ -1,4 +1,8 @@
 import { Db, MongoClient } from "mongodb";
+import type { Task } from "./types";
+
+/** Task document in MongoDB (includes owner). */
+export type TaskRow = Task & { userId: string };
 
 const DB_NAME = "tracktick";
 
@@ -33,20 +37,28 @@ export async function connectMongo(): Promise<void> {
   const db = c.db(DB_NAME);
   await Promise.all([
     db.collection("tasks").createIndex({ id: 1 }, { unique: true }),
+    db.collection("tasks").createIndex({ userId: 1 }),
     db.collection("pomodoro_sessions").createIndex({ id: 1 }, { unique: true }),
+    db.collection("pomodoro_sessions").createIndex({ userId: 1 }),
     db.collection("calendar_events").createIndex({ id: 1 }, { unique: true }),
+    db.collection("calendar_events").createIndex({ userId: 1 }),
   ]);
 }
 
 export function getMongoClient(): MongoClient {
   if (!client) {
-    throw new Error("MongoDB not initialized — connectMongo should run from instrumentation");
+    throw new Error("MongoDB not connected — call connectMongo() or withDb() first");
   }
   return client;
 }
 
 export function getDb(): Db {
   return getMongoClient().db(DB_NAME);
+}
+
+export async function withDb<T>(fn: (db: Db) => Promise<T>): Promise<T> {
+  await connectMongo();
+  return fn(getDb());
 }
 
 export async function nextSequence(db: Db, name: string): Promise<number> {
@@ -63,11 +75,3 @@ export async function nextSequence(db: Db, name: string): Promise<number> {
   return seq;
 }
 
-export type TaskRow = {
-  id: number;
-  title: string;
-  done: boolean;
-  priority: "low" | "medium" | "high";
-  dueDate: string | null;
-  createdAt: string;
-};

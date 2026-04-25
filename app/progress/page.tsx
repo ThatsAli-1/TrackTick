@@ -2,18 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
-
-type Summary = {
-  tasksTotal: number;
-  tasksCompleted: number;
-  focusSessions: number;
-  focusMinutes: number;
-  upcomingEvents: number;
-};
+import type { ProgressSummary } from "@/lib/types";
 
 export default function ProgressPage() {
   const { palette } = useTrackTheme();
-  const [summary, setSummary] = useState<Summary | null>(null);
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
 
   useEffect(() => {
     fetch("/api/progress/summary")

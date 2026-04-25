@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
 import * as tmPose from "@teachablemachine/pose";
 import * as tf from "@tensorflow/tfjs";
-
-const poseModelURL = "/api/models/pose/model.json";
-const poseMetaURL = "/api/models/pose/metadata.json";
+import { AUDIO_META_URL, AUDIO_MODEL_URL, POSE_META_URL, POSE_MODEL_URL } from "@/lib/model-urls";
+import type { BrowserSpeechRecognizer } from "@/lib/speech-recognizer";
+import type { PomodoroSession, Task } from "@/lib/types";
 const MODE_SECONDS = {
   pomodoro: 25 * 60,
   shortBreak: 5 * 60,
@@ -16,15 +16,7 @@ type PomodoroMode = keyof typeof MODE_SECONDS;
 
 const POMODORO_FOCUS_TASK_KEY = "tracktick:pomodoroFocusTaskId";
 
-type BrowserRecognizer = {
-  ensureModelLoaded: () => Promise<void>;
-  wordLabels: () => string[];
-  listen: (
-    cb: (result: { scores: number[] }) => void,
-    opts: { includeSpectrogram: boolean; probabilityThreshold: number },
-  ) => Promise<void>;
-  stopListening: () => Promise<void>;
-};
+type SessionListItem = Pick<PomodoroSession, "id" | "durationSeconds" | "completedAt">;
 
 export default function PomodoroPage() {
   const { palette } = useTrackTheme();
@@ -32,8 +24,8 @@ export default function PomodoroPage() {
   const [secondsLeft, setSecondsLeft] = useState(MODE_SECONDS.pomodoro);
   const [running, setRunning] = useState(false);
   const [goal, setGoal] = useState(6);
-  const [sessions, setSessions] = useState<{ id: number; durationSeconds: number; completedAt: string }[]>([]);
-  const [tasks, setTasks] = useState<{ id: number; title: string; done: boolean }[]>([]);
+  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   /** Set when the user picks a task; ignored if that task is no longer open. */
   const [manualFocusTaskId, setManualFocusTaskId] = useState<number | null>(null);
   const [taskPickerOpen, setTaskPickerOpen] = useState(false);
@@ -45,7 +37,7 @@ export default function PomodoroPage() {
 
   const webcamRef = useRef<tmPose.Webcam | null>(null);
   const poseModelRef = useRef<tmPose.CustomPoseNet | null>(null);
-  const recognizerRef = useRef<BrowserRecognizer | null>(null);
+  const recognizerRef = useRef<BrowserSpeechRecognizer | null>(null);
   const aiLoopRef = useRef<number | null>(null);
   const distractedSinceRef = useRef<number | null>(null);
   const runningRef = useRef(false);
@@ -204,7 +196,7 @@ export default function PomodoroPage() {
   async function startAI() {
     try {
       setAiBooting(true);
-      const poseModel = await tmPose.load(poseModelURL, poseMetaURL);
+      const poseModel = await tmPose.load(POSE_MODEL_URL, POSE_META_URL);
       poseModelRef.current = poseModel;
       const webcam = new tmPose.Webcam(256, 256, true);
       await webcam.setup();
@@ -213,7 +205,7 @@ export default function PomodoroPage() {
 
       const win = window as Window & {
         tf?: typeof tf;
-        speechCommands?: { create: (...args: unknown[]) => BrowserRecognizer };
+        speechCommands?: { create: (...args: unknown[]) => BrowserSpeechRecognizer };
       };
       if (!win.tf) {
         win.tf = tf;
@@ -227,8 +219,8 @@ export default function PomodoroPage() {
       const recognizer = speechCommands.create(
         "BROWSER_FFT",
         undefined,
-        `${origin}/api/models/audio/model.json`,
-        `${origin}/api/models/audio/metadata.json`,
+        `${origin}${AUDIO_MODEL_URL}`,
+        `${origin}${AUDIO_META_URL}`,
       );
       await recognizer.ensureModelLoaded();
       await recognizer.listen(
@@ -255,7 +247,7 @@ export default function PomodoroPage() {
 
       setAiReady(true);
       setAiBooting(false);
-      setVoiceStatus("Listening for Start/stop");
+      setVoiceStatus("Listening for start / stop");
       aiLoopRef.current = requestAnimationFrame((ts) => {
         void poseLoop(ts);
       });

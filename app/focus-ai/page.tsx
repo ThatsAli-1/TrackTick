@@ -3,29 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
 import * as tmPose from "@teachablemachine/pose";
+import { AUDIO_META_URL, AUDIO_MODEL_URL, POSE_META_URL, POSE_MODEL_URL } from "@/lib/model-urls";
+import type { BrowserSpeechRecognizer } from "@/lib/speech-recognizer";
 
 type PosePrediction = { className: string; probability: number };
-type BrowserRecognizer = {
-  ensureModelLoaded: () => Promise<void>;
-  wordLabels: () => string[];
-  listen: (
-    cb: (result: { scores: number[] }) => void,
-    opts: { includeSpectrogram: boolean; probabilityThreshold: number },
-  ) => Promise<void>;
-  stopListening: () => Promise<void>;
-};
-
-const poseModelURL = "/api/models/pose/model.json";
-const poseMetaURL = "/api/models/pose/metadata.json";
-const audioModelURL = "/api/models/audio/model.json";
-const audioMetaURL = "/api/models/audio/metadata.json";
 
 export default function FocusAIPage() {
   const { palette } = useTrackTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const webcamRef = useRef<tmPose.Webcam | null>(null);
   const poseModelRef = useRef<tmPose.CustomPoseNet | null>(null);
-  const audioRef = useRef<BrowserRecognizer | null>(null);
+  const audioRef = useRef<BrowserSpeechRecognizer | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const [running, setRunning] = useState(false);
@@ -97,7 +85,7 @@ export default function FocusAIPage() {
       setError("");
       setPoseStatus("Initializing...");
 
-      const model = await tmPose.load(poseModelURL, poseMetaURL);
+      const model = await tmPose.load(POSE_MODEL_URL, POSE_META_URL);
       poseModelRef.current = model;
 
       const size = 320;
@@ -117,12 +105,19 @@ export default function FocusAIPage() {
       await loadScript(
         "https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js",
       );
-      const speechCommands = (window as Window & { speechCommands?: { create: (...args: unknown[]) => BrowserRecognizer } })
-        .speechCommands;
+      const speechCommands = (
+        window as Window & { speechCommands?: { create: (...args: unknown[]) => BrowserSpeechRecognizer } }
+      ).speechCommands;
       if (!speechCommands) {
         throw new Error("Speech commands library not available in browser.");
       }
-      const recognizer = speechCommands.create("BROWSER_FFT", undefined, audioModelURL, audioMetaURL);
+      const origin = window.location.origin;
+      const recognizer = speechCommands.create(
+        "BROWSER_FFT",
+        undefined,
+        `${origin}${AUDIO_MODEL_URL}`,
+        `${origin}${AUDIO_META_URL}`,
+      );
       await recognizer.ensureModelLoaded();
       await recognizer.listen(
         (result) => {

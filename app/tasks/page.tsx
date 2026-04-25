@@ -2,15 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell, useTrackTheme } from "@/app/components/app-shell";
-
-type Task = {
-  id: number;
-  title: string;
-  done: boolean;
-  priority: "low" | "medium" | "high";
-  dueDate: string | null;
-  createdAt: string;
-};
+import type { Task } from "@/lib/types";
 
 export default function TasksPage() {
   const { palette, mode } = useTrackTheme();

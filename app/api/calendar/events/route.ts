@@ -1,47 +1,57 @@
-import { connectMongo, getDb, nextSequence } from "@/lib/mongo";
+import { getSessionUserId } from "@/lib/auth-session";
+import { nextSequence, withDb } from "@/lib/mongo";
+import type { CalendarEvent } from "@/lib/types";
 
-type EventRow = {
-  id: number;
-  title: string;
-  eventDate: string;
-  note: string | null;
-  createdAt: string;
-};
+type CalendarRow = CalendarEvent & { userId: string };
 
-export async function GET() {
-  await connectMongo();
-  const rows = await getDb()
-    .collection<EventRow>("calendar_events")
-    .find({}, { projection: { _id: 0 } })
-    .sort({ eventDate: 1 })
-    .toArray();
-  return Response.json(rows);
+export async function GET(request: Request) {
+  const userId = await getSessionUserId(request);
+  if (!userId) {
+    return Response.json([]);
+  }
+
+  return withDb(async (db) => {
+    const rows = await db
+      .collection<CalendarRow>("calendar_events")
+      .find({ userId }, { projection: { _id: 0, userId: 0 } })
+      .sort({ eventDate: 1 })
+      .toArray();
+    return Response.json(rows);
+  });
 }
 
 export async function POST(request: Request) {
+  const userId = await getSessionUserId(request);
+  if (!userId) {
+    return Response.json({ error: "Sign in to add events." }, { status: 401 });
+  }
+
   const body = (await request.json()) as { title?: string; eventDate?: string; note?: string };
-  if (!body.title?.trim() || !body.eventDate?.trim()) {
+  const title = body.title?.trim();
+  const eventDate = body.eventDate?.trim();
+  if (!title || !eventDate) {
     return Response.json({ error: "Title and date are required." }, { status: 400 });
   }
 
-  await connectMongo();
-  const db = getDb();
-  const createdAt = new Date().toISOString();
-  const id = await nextSequence(db, "calendar_events");
+  return withDb(async (db) => {
+    const createdAt = new Date().toISOString();
+    const id = await nextSequence(db, "calendar_events");
 
-  await db.collection<EventRow>("calendar_events").insertOne({
-    id,
-    title: body.title.trim(),
-    eventDate: body.eventDate,
-    note: body.note ?? null,
-    createdAt,
-  });
+    await db.collection<CalendarRow>("calendar_events").insertOne({
+      id,
+      userId,
+      title,
+      eventDate,
+      note: body.note ?? null,
+      createdAt,
+    });
 
-  return Response.json({
-    id,
-    title: body.title.trim(),
-    eventDate: body.eventDate,
-    note: body.note ?? null,
-    createdAt,
+    return Response.json({
+      id,
+      title,
+      eventDate,
+      note: body.note ?? null,
+      createdAt,
+    });
   });
 }

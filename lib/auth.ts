@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { connectMongo, getDb, getMongoClient } from "./mongo";
+import { getAuthSiteOrigin } from "./site-url";
 
 type AuthInstance = ReturnType<typeof betterAuth>;
 
@@ -11,7 +12,8 @@ export async function getAuth(): Promise<AuthInstance> {
   await connectMongo();
   authInstance = betterAuth({
     secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: getAuthSiteOrigin(),
+    trustedProxyHeaders: true,
     database: mongodbAdapter(getDb(), { client: getMongoClient() }),
     emailAndPassword: {
       enabled: true,
@@ -22,6 +24,6 @@ export async function getAuth(): Promise<AuthInstance> {
         clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       },
     },
-  }) as AuthInstance;
+  }) as unknown as AuthInstance;
   return authInstance;
 }

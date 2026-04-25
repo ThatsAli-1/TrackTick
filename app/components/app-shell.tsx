@@ -6,12 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 
-const nav = [
+const NAV_LINKS = [
   { href: "/dashboard", label: "Home" },
   { href: "/pomodoro", label: "Pomodoro" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/tracker", label: "Tracker" },
   { href: "/profile", label: "Profile" },
-];
+] as const;
+
+const AUTH_ONLY_HREF = new Set<string>(["/pomodoro", "/calendar"]);
 
 export type ThemeMode = "dark" | "light";
 
@@ -108,6 +111,11 @@ export function useTrackTheme() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const nav = useMemo(
+    () => NAV_LINKS.filter((item) => !AUTH_ONLY_HREF.has(item.href) || session),
+    [session],
+  );
   const [mode, setMode] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "dark";
     const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -130,8 +138,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider value={themeValue}>
-      <main className="min-h-screen p-3 sm:p-5" style={{ background: palette.pageBg, color: palette.text }}>
-        <div className="mx-auto max-w-[1320px] rounded-sm p-6" style={{ background: palette.panelBg }}>
+      <main
+        className="flex min-h-dvh w-full flex-col"
+        style={{ background: palette.panelBg, color: palette.text }}
+      >
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 sm:py-5">
           <header className="mb-4 flex items-center justify-between gap-4">
             <nav className="flex flex-wrap items-center gap-4 text-sm">
               {nav.map((item) => (
@@ -159,7 +170,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <section className="min-h-[760px] rounded-3xl px-4 py-5 sm:px-7 sm:py-7" style={{ background: palette.innerBg }}>
+          <section
+            className="flex min-h-0 flex-1 flex-col rounded-3xl px-4 py-5 sm:px-7 sm:py-7"
+            style={{ background: palette.innerBg }}
+          >
             {children}
           </section>
         </div>
